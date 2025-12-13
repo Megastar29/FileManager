@@ -2,6 +2,7 @@
 #include<stdbool.h>
 #include<stdlib.h>
 #include<string.h>
+#include<conio.h>
 
 #define NON_OPTION 0
 #define CREATE_FILE 1
@@ -79,19 +80,15 @@ int main()
 	if (path == NULL)
 	{
 		printf("\nError: the memory can't be allocated!\n");
+		printf("Press enter to exit...");
+		_getch();
 		return 0;
 	}
 	path[0] = '\0';
 
 	ushort capacity = MIN_DATA_ARR_SIZE;
-	ushort count_data = MIN_DATA_ARR_SIZE;
-	//country_data* data = malloc(count_data * sizeof(country_data));
+	ushort count_data = 0;
 	country_data* data = NULL;
-	/*if (data == NULL)
-	{
-		printf("\nError: the memory can't be allocated!\n");
-		return 0;
-	}*/
 
 	do
 	{
@@ -220,11 +217,40 @@ int main()
 
 				} while (!valid_input(count_rec, MIN_COUNT_REC, MAX_COUNT_REC, inv_data));
 
-				data = malloc(sizeof(country_data) * count_rec);
+				if (data != NULL)
+				{
+					for (ushort i = 0; i < count_data; i++)
+					{
+						if (data[i].name != NULL)
+						{
+							free(data[i].name);
+							data[i].name = NULL;
+						}						
+					}
+
+					country_data* temp = realloc(data, sizeof(country_data) * count_rec);
+
+					if (temp == NULL)
+					{
+						printf("\nError: the memory can't be allocated!\n");
+						printf("Press enter to exit...");
+						_getch();
+						return 0;
+					}
+					data = temp;
+					temp = NULL;
+				}
+				else
+				{
+					data = malloc(sizeof(country_data) * count_rec);
+				}				
+				count_data = count_rec;
 
 				if (data == NULL)
 				{
 					printf("\nError: the memory can't be allocated!\n");
+					printf("Press enter to exit...");
+					_getch();
 					return 0;
 				}
 
@@ -234,6 +260,8 @@ int main()
 					if (data[i].name == NULL)
 					{
 						printf("\nError: the memory can't be allocated!\n");
+						printf("Press enter to exit...");
+						_getch();
 						return 0;
 					}
 				}
@@ -308,10 +336,19 @@ int main()
 	} while (option != EXIT_PROG);
 
 	free(path);
-	//free(data);
+	path = NULL;
 	if (data != NULL)
 	{
+		for (ushort i = 0; i < count_data; i++)
+		{
+			if (data[i].name != NULL)
+			{
+				free(data[i].name);
+			}
+		}
+
 		free(data);
+		data = NULL;
 	}
 
 	return 0;
