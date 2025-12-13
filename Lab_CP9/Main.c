@@ -18,8 +18,8 @@
 
 #define MAX_NAME_SIZE 25
 #define FILE_EXT ".mf"
-#define MIN_DATA_ARR_SIZE 10
-#define MAX_DATA_ARR_SIZE 100
+#define MIN_DATA_ALLOC 2
+#define MAX_DATA_POSSIBLE_ALLOC 100
 #define MIN_COUNT_REC 1
 #define MAX_COUNT_REC 100
 #define MAX_COUNTRY_NAME_SIZE 41
@@ -52,8 +52,8 @@ bool validate_file(char* name, bool* cannot_open);
 
 bool is_empty(char* name, bool* cannot_open);
 
-// returns true if file can be opened
-bool read_all_data_from_file(char* path, country_data* data, ushort* capacity, ushort* size);
+// returns true if file can be opened and memory allocated successfully
+bool read_all_data_from_file(char* path, country_data** data, ushort* size);
 
 bool valid_input(ushort data, ushort min, ushort max, char inv_data);
 
@@ -86,7 +86,6 @@ int main()
 	}
 	path[0] = '\0';
 
-	ushort capacity = MIN_DATA_ARR_SIZE;
 	ushort count_data = 0;
 	country_data* data = NULL;
 
@@ -139,8 +138,38 @@ int main()
 			}
 			else
 			{
-				// data allocation must be done
-				bool is_file_opened = read_all_data_from_file(path, data, &capacity, &count_data);
+				if (data != NULL)
+				{
+					for (ushort i = 0; i < count_data; i++)
+					{
+						if (data[i].name != NULL)
+						{
+							free(data[i].name);
+							data[i].name = NULL;
+						}
+					}
+
+					free(data);
+					data = NULL;
+				}
+				bool is_correct_work = read_all_data_from_file(path, &data, &count_data);
+
+				if (!is_correct_work)
+				{
+					printf("Press enter to exit...");
+					_getch();
+					return 0;
+				}
+
+				for (ushort i = 0; i < count_data; i++)
+				{
+					printf("Data stack #%hu\n", i + 1);
+					printf("Region: %s\n", data[i].name);
+					printf("Square: %f\n", data[i].square);
+					printf("Population: %llu\n", data[i].population);
+					printf("\n");
+				}
+
 				fclose(file);
 			}
 			break;
@@ -199,7 +228,7 @@ int main()
 				} while (!is_valid || cannot_open);
 			}
 
-			fopen_s(&file, path, "ab");
+			int r = fopen_s(&file, path, "ab");
 
 			if (file == NULL)
 			{
@@ -307,10 +336,10 @@ int main()
 				{
 					size_t size_of_word = strlen(data[i].name);
 					fwrite(&size_of_word, sizeof(size_of_word), 1, file);
-					fwrite(&data[i].name, sizeof(data[i].name), 1, file);
+					fwrite(data[i].name, sizeof(data[i].name), 1, file);
 					fwrite(&data[i].square, sizeof(data[i].square), 1, file);
 					fwrite(&data[i].population, sizeof(data[i].population), 1, file);
-				}				
+				}
 
 				fclose(file);
 			}
@@ -549,7 +578,7 @@ bool is_empty(char* name, bool* cannot_open)
 	return pos == 0;
 }
 
-bool read_all_data_from_file(char* path, country_data* data, ushort* capacity, ushort* size)
+bool read_all_data_from_file(char* path, country_data** data, ushort* size)
 {
 	FILE* file;
 
@@ -563,13 +592,64 @@ bool read_all_data_from_file(char* path, country_data* data, ushort* capacity, u
 
 	fseek(file, 5, SEEK_SET);
 	
-	char buffer[MAX_COUNTRY_NAME_SIZE];
-	/*ushort i = 0;
-	while (!feof(file))
+	ushort counter = 0;
+	ushort allocated = MIN_DATA_ALLOC;
+	*data = malloc(MIN_DATA_ALLOC * sizeof(country_data));
+
+	// can make data validation while reading data
+	// if wrong data => data_corruption_error
+	bool is_continue = true;
+	while (is_continue)
 	{
-		fread(buffer, sizeof(char), )
-		i++;
-	}*/
+		if (counter >= allocated)
+		{
+			allocated *= 2;
+			if (allocated > MAX_DATA_POSSIBLE_ALLOC)
+			{
+				allocated = MAX_DATA_POSSIBLE_ALLOC;
+			}
+
+			country_data* temp = realloc(*data, allocated * sizeof(country_data));
+			if (temp == NULL)
+			{
+				printf("\nError: the memory can't be allocated!\n");
+				for (ushort i = 0; i < counter; i++)
+				{
+					free((*data)[i].name);
+				}
+				free(*data);
+				*data = NULL;
+				fclose(file);
+				return false;
+			}
+
+			*data = temp;
+			temp = NULL;
+		}
+
+		size_t name_length = 0;
+		is_continue = (bool)fread(&name_length, sizeof(size_t), 1, file);
+		(*data)[counter].name = malloc((name_length + 1) * sizeof(char));
+		if ((*data)[counter].name == NULL)
+		{
+			printf("\nError: the memory can't be allocated!\n");
+			for (ushort i = 0; i < counter; i++)
+			{
+				free((*data)[i].name);
+			}
+			free(*data);
+			*data = NULL;
+			fclose(file);
+			return false;
+		}
+		fread((*data)[counter].name, sizeof((*data)[counter].name), 1, file);
+		fread(&(*data)[counter].square, sizeof((*data)[counter].square), 1, file);
+		fread(&(*data)[counter].population, sizeof((*data)[counter].population), 1, file);
+
+		counter++;
+	}
+
+	*size = --counter;
 
 	return true;
 }
