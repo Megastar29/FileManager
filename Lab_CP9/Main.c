@@ -19,17 +19,24 @@
 #define FILE_EXT ".mf"
 #define MIN_DATA_ARR_SIZE 10
 #define MAX_DATA_ARR_SIZE 100
+#define MIN_COUNT_REC 1
+#define MAX_COUNT_REC 100
 #define MAX_COUNTRY_NAME_SIZE 41
-#define SQUARE_MAX 1e9
-#define POPULATION_MAX 1e11
+#define SQUARE_MIN 1e-7f
+#define SQUARE_MAX 1e9f
+#define POPULATION_MIN 0
+#define POPULATION_MAX 100000000000
+
+#define EPS 1e-7f
 
 typedef unsigned short ushort;
+typedef unsigned long long ullong;
 
 typedef struct country_data
 {
 	char* name;
 	float square;
-	long population;
+	ullong population;
 } country_data;
 
 void create_file(char* path, bool* is_err);
@@ -46,6 +53,12 @@ bool is_empty(char* name, bool* cannot_open);
 
 // returns true if file can be opened
 bool read_all_data_from_file(char* path, country_data* data, ushort* capacity, ushort* size);
+
+bool valid_input(ushort data, ushort min, ushort max, char inv_data);
+
+bool valid_long_input(ullong data, ullong min, ullong max, char inv_data);
+
+void input_float(float* result, bool* is_data_valid, float min_val, float max_val);
 
 int main()
 {
@@ -72,13 +85,13 @@ int main()
 
 	ushort capacity = MIN_DATA_ARR_SIZE;
 	ushort count_data = MIN_DATA_ARR_SIZE;
-	country_data* data = malloc(count_data * sizeof(country_data));
-
-	if (data == NULL)
+	//country_data* data = malloc(count_data * sizeof(country_data));
+	country_data* data = NULL;
+	/*if (data == NULL)
 	{
 		printf("\nError: the memory can't be allocated!\n");
 		return 0;
-	}
+	}*/
 
 	do
 	{
@@ -129,6 +142,7 @@ int main()
 			}
 			else
 			{
+				// data allocation must be done
 				bool is_file_opened = read_all_data_from_file(path, data, &capacity, &count_data);
 				fclose(file);
 			}
@@ -178,7 +192,101 @@ int main()
 			}
 			break;
 		case MK_RECORDS:
+			if (path[0] == '\0')
+			{
+				bool is_valid = false, cannot_open = false;
+				do
+				{
+					enter_new_file(path);
+					is_valid = validate_file(path, &cannot_open);
+				} while (!is_valid || cannot_open);
+			}
 
+			fopen_s(&file, path, "ab");
+
+			if (file == NULL)
+			{
+				printf("\nError: cannot open the file! The file is not in the directory or the name of the file is wrong. Make sure that the file has extention .mf\n");
+			}
+			else
+			{
+				// check what is in file (count written data) 
+				ushort count_rec = 0;
+				char inv_data = '\0';
+				do
+				{
+					printf("Enter count of records(from %d to %d): ", MIN_COUNT_REC, MAX_COUNT_REC);
+					scanf_s("%hu%c", &count_rec, &inv_data, 1);
+
+				} while (!valid_input(count_rec, MIN_COUNT_REC, MAX_COUNT_REC, inv_data));
+
+				data = malloc(sizeof(country_data) * count_rec);
+
+				if (data == NULL)
+				{
+					printf("\nError: the memory can't be allocated!\n");
+					return 0;
+				}
+
+				for (ushort i = 0; i < count_rec; i++)
+				{
+					data[i].name = malloc(MAX_COUNTRY_NAME_SIZE * sizeof(char));
+					if (data[i].name == NULL)
+					{
+						printf("\nError: the memory can't be allocated!\n");
+						return 0;
+					}
+				}
+
+				for (ushort i = 0; i < count_rec; i++)
+				{
+					printf("Enter the name of the region #%hu (max %d characters): ", (i + 1), MAX_COUNTRY_NAME_SIZE - 1);
+					int err = scanf_s("%s", data[i].name, MAX_COUNTRY_NAME_SIZE);
+					clear_the_input_buffer();
+
+					if (err == 0)
+					{
+						printf("\nError: too big data entered. Try again!\n");
+						i--;
+					}
+					else
+					{
+						printf("Enter the square of the region #%hu (min: %f, max: %f): ", (i + 1), SQUARE_MIN, SQUARE_MAX);
+						bool is_input_valid = false;
+						input_float(&data[i].square, &is_input_valid, SQUARE_MIN, SQUARE_MAX);
+
+						if (!is_input_valid)
+						{
+							i--;
+						}
+						else
+						{
+							inv_data = '\0';
+							printf("Enter the population of the region #%hu (min: %lu, max: %llu): ", (i + 1), POPULATION_MIN, POPULATION_MAX);
+							scanf_s("%llu%c", &data[i].population, &inv_data, 1);
+
+							if (!valid_long_input(data[i].population, POPULATION_MIN, POPULATION_MAX, inv_data))
+							{
+								i--;
+							}
+						}
+					}
+				}
+
+				// writing to file
+				fseek(file, 5, SEEK_SET);
+				for (ushort i = 0; i < count_rec; i++)
+				{
+					size_t size_of_word = strlen(data[i].name);
+					fwrite(&size_of_word, sizeof(size_of_word), 1, file);
+					fwrite(&data[i].name, sizeof(data[i].name), 1, file);
+					fwrite(&data[i].square, sizeof(data[i].square), 1, file);
+					fwrite(&data[i].population, sizeof(data[i].population), 1, file);
+				}				
+
+				fclose(file);
+			}
+			
 			break;
 		case READ_DATA:
 			break;
@@ -200,7 +308,11 @@ int main()
 	} while (option != EXIT_PROG);
 
 	free(path);
-	free(data);
+	//free(data);
+	if (data != NULL)
+	{
+		free(data);
+	}
 
 	return 0;
 }
@@ -318,7 +430,7 @@ void enter_new_file(char* name)
 		printf("Enter the name of file without file extension(max %d characters): ", MAX_NAME_SIZE - 4);
 		err = scanf_s("%s", name, MAX_NAME_SIZE - 3);
 		clear_the_input_buffer();
-
+		
 		if (err == 0)
 		{
 			printf("\nError: too big data entered. Try again!\n");
@@ -423,4 +535,183 @@ bool read_all_data_from_file(char* path, country_data* data, ushort* capacity, u
 	}*/
 
 	return true;
+}
+
+bool valid_input(ushort data, ushort min, ushort max, char inv_data)
+{
+	bool res = false;
+
+	if (inv_data != '\n')
+	{
+		printf("\nError: NOT a number has been inputed. Try again!\n");
+
+		clear_the_input_buffer();
+	}
+	else
+	{
+		if (data >= min && data <= max)
+		{
+			res = true;
+		}
+		else
+		{
+			printf("\nError: the number is out of range. Try again!\n");
+		}
+	}
+
+	return res;
+}
+
+bool valid_long_input(ullong data, ullong min, ullong max, char inv_data)
+{
+	bool res = false;
+
+	if (inv_data != '\n')
+	{
+		printf("\nError: NOT a number has been inputed. Try again!\n");
+
+		clear_the_input_buffer();
+	}
+	else
+	{
+		if (data >= min && data <= max)
+		{
+			res = true;
+		}
+		else
+		{
+			printf("\nError: the number is out of range. Try again!\n");
+		}
+	}
+
+	return res;
+}
+
+void input_float(float* result, bool* is_data_valid, float min_val, float max_val)
+{
+	*result = 0.0;
+	// + - 12345678.1234567 \n \0
+	char buffer[21];
+
+	fgets(buffer, sizeof(buffer), stdin);
+
+	// buffer overflow error handler
+	ushort buffer_size = (ushort)strlen(buffer);
+	if (buffer[buffer_size - 1] != '\n')
+	{
+		printf("\nError: too big data entered. The buffer overflow has occured. Try to enter data again!\n");
+		clear_the_input_buffer();
+		*is_data_valid = false;
+		return;
+	}
+
+	// nothing inputed error handler
+	if (buffer_size == 1)
+	{
+		printf("\nError: nothing has been entered. Try again!\n");
+		*is_data_valid = false;
+		return;
+	}
+
+	char* data_after_number = NULL;
+	float number = strtof(buffer, &data_after_number);
+
+	if (data_after_number[0] != '\n')
+	{
+		printf("\nError: not a number has been put. Try again!\n");
+		*is_data_valid = false;
+		return;
+	}
+
+	// boundary validation
+	if ((number - min_val < EPS) || (number - max_val > EPS))
+	{
+		printf("\nError: the element is out of range. Try again!\n");
+		*is_data_valid = false;
+		return;
+	}
+
+	// 7 digits after . validation
+	// case with e: 1e-10
+
+	char* e_p = strchr(buffer, 'e');
+	char* E_p = strchr(buffer, 'E');
+	char* pdot = strchr(buffer, '.');
+
+	if (E_p != NULL)
+	{
+		buffer[E_p - buffer] = 'e';
+		e_p = E_p;
+	}
+
+	if (e_p != NULL && pdot == NULL)
+	{
+		// - x1 x2 \0
+		char after_e_number[4];
+
+		ushort e_index = e_p - buffer;
+		ushort slash_n_index = strchr(buffer, '\n') - buffer;
+
+		snprintf(after_e_number, sizeof(after_e_number), "%.*s", slash_n_index - e_index - 1, buffer + e_index + 1);
+
+		ushort after_e_number_i = abs(atoi(after_e_number));
+
+		if (after_e_number_i > 7)
+		{
+			printf("\nError: the number has more than 7 digits after dot. Try to enter again!\n");
+			*is_data_valid = false;
+			return;
+		}
+	}
+	// non e case: 2.123456789
+	else if (e_p == NULL && pdot != NULL)
+	{
+		ushort dot_index = pdot - buffer;
+		bool valid = false;
+
+		for (ushort i = dot_index + 1; i < (dot_index + 9); i++)
+		{
+			if (!valid)
+			{
+				if (buffer[i] == '\n')
+				{
+					valid = true;
+				}
+			}
+		}
+
+		if (!valid)
+		{
+			printf("\nError: the number has more than 7 digits after dot. Try to enter again!\n");
+			*is_data_valid = false;
+			return;
+		}
+	}
+	// e case and dot case: 1.0000001e-5
+	else if (e_p != NULL && pdot != NULL)
+	{
+		ushort dot_index = pdot - buffer;
+		ushort e_index = e_p - buffer;
+
+		ushort digits_of_number = 0;
+
+		digits_of_number += (e_index - dot_index - 2);
+
+		char after_e_number[4];
+		ushort slash_n_index = strchr(buffer, '\n') - buffer;
+
+		snprintf(after_e_number, sizeof(after_e_number), "%.*s", slash_n_index - e_index - 1, buffer + e_index + 1);
+
+		digits_of_number += abs(atoi(after_e_number));
+
+		if (digits_of_number > 7)
+		{
+			printf("\nError: the number has more than 7 digits after dot. Try to enter again!\n");
+			*is_data_valid = false;
+			return;
+		}
+	}
+
+	*is_data_valid = true;
+	*result = number;
 }
