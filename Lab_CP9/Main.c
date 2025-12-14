@@ -445,6 +445,28 @@ int main()
 		case INSERT_DATA:
 			break;
 		case DELETE_DATA:
+			prepare_path(&path);
+			fopen_s(&file, path, "r+b");
+
+			if (file == NULL)
+			{
+				printf("\nError: cannot open the file! The file is not in the directory or the name of the file is wrong. Make sure that the file has extention .mf\n");
+			}
+			else 
+			{
+				ushort delete_rec_num = 0;
+				char inv_data = '\0';
+				do
+				{
+					printf("Enter the number of record to change(from %d to %d): ", MIN_COUNT_REC, MAX_COUNT_REC);
+					scanf_s("%hu%c", &delete_rec_num, &inv_data, 1);
+
+				} while (!valid_input(delete_rec_num, MIN_COUNT_REC, MAX_COUNT_REC, inv_data));
+
+				
+
+				fclose(file);
+			}
 			break;
 		case EXIT_PROG:
 			break;
@@ -1123,11 +1145,44 @@ bool edit_data_in_file(FILE* file, char* path, country_data obj, ushort index)
 
 	if (!read_all_data_from_file(file, &data_from_file, &size))
 	{
+		free(key);
 		return false;
 	}
 
+	if (index >= size)
+	{
+		printf("\nError: index out of range.\n");
+		for (ushort i = 0; i < size; i++)
+		{
+			free(data_from_file[i].name);
+			data_from_file[i].name = NULL;
+		}
+		free(data_from_file);
+		data_from_file = NULL;
+		free(key);
+		return false;
+	}
 
-	strcpy_s(data_from_file[index].name, sizeof(obj.name), obj.name);
+	ushort new_len = strlen(obj.name);
+	char* new_name = malloc(new_len + 1);
+	if (new_name == NULL)
+	{
+		printf("\nError: the memory can't be allocated!\n");
+		for (ushort i = 0; i < size; i++)
+		{
+			free(data_from_file[i].name);
+			data_from_file[i].name = NULL;
+		}
+		free(data_from_file);
+		data_from_file = NULL;
+		free(key);
+		return false;
+	}
+	memcpy(new_name, obj.name, new_len + 1);
+
+	// reassigning new name
+	free(data_from_file[index].name);
+	data_from_file[index].name = new_name;
 	data_from_file[index].square = obj.square;
 	data_from_file[index].population = obj.population;
 
@@ -1135,6 +1190,14 @@ bool edit_data_in_file(FILE* file, char* path, country_data obj, ushort index)
 
 	if (!clear_the_file(path))
 	{
+		for (ushort i = 0; i < size; i++)
+		{
+			free(data_from_file[i].name);
+			data_from_file[i].name = NULL;
+		}
+		free(data_from_file);
+		data_from_file = NULL;
+		free(key);
 		return false;
 	}
 
@@ -1143,6 +1206,14 @@ bool edit_data_in_file(FILE* file, char* path, country_data obj, ushort index)
 	if (file == NULL)
 	{
 		printf("\nError: cannot open the file! The file is not in the directory or the name of the file is wrong. Make sure that the file has extention .mf\n");
+		for (ushort i = 0; i < size; i++)
+		{
+			free(data_from_file[i].name);
+			data_from_file[i].name = NULL;
+		}
+		free(data_from_file);
+		data_from_file = NULL;
+		free(key);
 		return false;
 	}
 
@@ -1163,6 +1234,8 @@ bool edit_data_in_file(FILE* file, char* path, country_data obj, ushort index)
 
 	free(key);
 	fclose(file);
+
+	printf("Data edited correctly\n");
 
 	return true;
 }
