@@ -74,6 +74,8 @@ void write_data_to_file(FILE* file, country_data* data, ushort size);
 
 bool clear_the_file(char* path);
 
+bool delete_data_from_file(FILE* file, char* path, ushort index);
+
 int main()
 {
 	printf("This is file manager program. It stores data about districts in file. Here are the menu that shows what it can do: \n");
@@ -458,12 +460,17 @@ int main()
 				char inv_data = '\0';
 				do
 				{
-					printf("Enter the number of record to change(from %d to %d): ", MIN_COUNT_REC, MAX_COUNT_REC);
+					printf("Enter the number of record to delete(from %d to %d): ", MIN_COUNT_REC, MAX_COUNT_REC);
 					scanf_s("%hu%c", &delete_rec_num, &inv_data, 1);
 
 				} while (!valid_input(delete_rec_num, MIN_COUNT_REC, MAX_COUNT_REC, inv_data));
 
-				
+				if (!delete_data_from_file(file, path, delete_rec_num - 1))
+				{
+					printf("Press enter to exit...");
+					_getch();
+					return 0;
+				}
 
 				fclose(file);
 			}
@@ -1266,6 +1273,104 @@ bool clear_the_file(char* path)
 	}
 
 	fclose(file);
+
+	return true;
+}
+
+bool delete_data_from_file(FILE* file, char* path, ushort index)
+{
+	char* key = malloc(KEY_SYMBOLS * sizeof(char));
+	if (key == NULL)
+	{
+		printf("\nError: the memory can't be allocated!\n");
+		return false;
+	}
+
+	fread(key, sizeof(char), KEY_SYMBOLS, file);
+	country_data* data_from_file;
+	ushort size = 0;
+
+	if (!read_all_data_from_file(file, &data_from_file, &size))
+	{
+		free(key);
+		return false;
+	}
+
+	if (index >= size)
+	{
+		printf("\nError: index out of range.\n");
+		for (ushort i = 0; i < size; i++)
+		{
+			free(data_from_file[i].name);
+			data_from_file[i].name = NULL;
+		}
+		free(data_from_file);
+		data_from_file = NULL;
+		free(key);
+		return false;
+	}
+
+	fclose(file);
+
+	if (!clear_the_file(path))
+	{
+		for (ushort i = 0; i < size; i++)
+		{
+			free(data_from_file[i].name);
+			data_from_file[i].name = NULL;
+		}
+		free(data_from_file);
+		data_from_file = NULL;
+		free(key);
+		return false;
+	}
+
+	fopen_s(&file, path, "ab");
+
+	if (file == NULL)
+	{
+		printf("\nError: cannot open the file! The file is not in the directory or the name of the file is wrong. Make sure that the file has extention .mf\n");
+		for (ushort i = 0; i < size; i++)
+		{
+			free(data_from_file[i].name);
+			data_from_file[i].name = NULL;
+		}
+		free(data_from_file);
+		data_from_file = NULL;
+		free(key);
+		return false;
+	}
+
+	fwrite(key, sizeof(char), KEY_SYMBOLS, file);
+
+	for (ushort i = 0; i < size; i++)
+	{
+		if (i != index)
+		{
+			size_t size_of_word = strlen(data_from_file[i].name);
+			fwrite(&size_of_word, sizeof(size_of_word), 1, file);
+			fwrite(data_from_file[i].name, sizeof(char), size_of_word, file);
+			fwrite(&data_from_file[i].square, sizeof(data_from_file[i].square), 1, file);
+			fwrite(&data_from_file[i].population, sizeof(data_from_file[i].population), 1, file);
+		}		
+	}
+
+	if (data_from_file != NULL)
+	{
+		for (ushort i = 0; i < size; i++)
+		{
+			free(data_from_file[i].name);
+			data_from_file[i].name = NULL;
+		}
+
+		free(data_from_file);
+		data_from_file = NULL;
+	}
+
+	free(key);
+	fclose(file);
+
+	printf("Data deleted correctly\n");
 
 	return true;
 }
