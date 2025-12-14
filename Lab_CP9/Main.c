@@ -18,6 +18,7 @@
 
 #define MAX_NAME_SIZE 25
 #define FILE_EXT ".mf"
+#define KEY_SYMBOLS 5
 #define MIN_DATA_ALLOC 2
 #define MAX_DATA_POSSIBLE_ALLOC 100
 #define MIN_COUNT_REC 1
@@ -53,7 +54,7 @@ bool validate_file(char* name, bool* cannot_open);
 bool is_empty(char* name, bool* cannot_open);
 
 // returns true if file can be opened and memory allocated successfully
-bool read_all_data_from_file(char* path, country_data** data, ushort* size);
+bool read_all_data_from_file(FILE* file, country_data** data, ushort* size);
 
 bool valid_input(ushort data, ushort min, ushort max, char inv_data);
 
@@ -65,7 +66,13 @@ void print_data(country_data* data, ushort size, bool print_data_stack_num);
 
 void prepare_path(char** path);
 
-void read_display_data_from_file(char* path, ushort start_rec, ushort end_rec);
+bool read_display_data_from_file(char* path, ushort start_rec, ushort end_rec);
+
+bool edit_data_in_file(FILE* file, char* path, country_data obj, ushort index);
+
+void write_data_to_file(FILE* file, country_data* data, ushort size);
+
+bool clear_the_file(char* path);
 
 int main()
 {
@@ -148,7 +155,7 @@ int main()
 					free(data);
 					data = NULL;
 				}
-				bool is_correct_work = read_all_data_from_file(path, &data, &count_data);
+				bool is_correct_work = read_all_data_from_file(file, &data, &count_data);
 
 				if (!is_correct_work)
 				{
@@ -268,6 +275,7 @@ int main()
 
 				for (ushort i = 0; i < count_rec; i++)
 				{
+					// func enter data object
 					printf("Enter the name of the region #%hu (max %d characters): ", (i + 1), MAX_COUNTRY_NAME_SIZE - 1);
 					int err = scanf_s("%s", data[i].name, MAX_COUNTRY_NAME_SIZE);
 					clear_the_input_buffer();
@@ -301,16 +309,7 @@ int main()
 					}
 				}
 
-				// writing to file
-				fseek(file, 5, SEEK_SET);
-				for (ushort i = 0; i < count_rec; i++)
-				{
-					size_t size_of_word = strlen(data[i].name);
-					fwrite(&size_of_word, sizeof(size_of_word), 1, file);
-					fwrite(data[i].name, sizeof(char), size_of_word, file);
-					fwrite(&data[i].square, sizeof(data[i].square), 1, file);
-					fwrite(&data[i].population, sizeof(data[i].population), 1, file);
-				}
+				write_data_to_file(file, data, count_rec);
 
 				fclose(file);
 			}			
@@ -348,12 +347,98 @@ int main()
 					} while (!valid_input(count_rec, MIN_COUNT_REC, MAX_COUNT_REC - start_rec_num, inv_data));
 				}
 
-				read_display_data_from_file(path, start_rec_num - 1, start_rec_num + count_rec - 1);
+				if (!read_display_data_from_file(path, start_rec_num - 1, start_rec_num + count_rec - 1))
+				{
+					printf("Press enter to exit...");
+					_getch();
+					return 0;
+				}
 
 				fclose(file);
 			}
 			break;
 		case EDIT_REC:
+			prepare_path(&path);
+			fopen_s(&file, path, "r+b");
+
+			if (file == NULL)
+			{
+				printf("\nError: cannot open the file! The file is not in the directory or the name of the file is wrong. Make sure that the file has extention .mf\n");
+			}
+			else
+			{
+				ushort change_rec_num = 0;
+				char inv_data = '\0';
+				do
+				{
+					printf("Enter the number of record to change(from %d to %d): ", MIN_COUNT_REC, MAX_COUNT_REC);
+					scanf_s("%hu%c", &change_rec_num, &inv_data, 1);
+
+				} while (!valid_input(change_rec_num, MIN_COUNT_REC, MAX_COUNT_REC, inv_data));
+
+				country_data temp;
+				temp.name = NULL;
+
+				temp.name = malloc(MAX_COUNTRY_NAME_SIZE * sizeof(char));
+				if (temp.name == NULL)
+				{
+					printf("\nError: the memory can't be allocated!\n");
+					printf("Press enter to exit...");
+					_getch();
+					return 0;
+				}
+
+				bool is_data_input_correct = true;
+				do
+				{
+					is_data_input_correct = true;
+					printf("Enter the name of the region #%hu (max %d characters): ", change_rec_num, MAX_COUNTRY_NAME_SIZE - 1);
+					int err = scanf_s("%s", temp.name, MAX_COUNTRY_NAME_SIZE);
+					clear_the_input_buffer();
+
+					if (err == 0)
+					{
+						printf("\nError: too big data entered. Try again!\n");
+						is_data_input_correct = false;
+					}
+					else
+					{
+						printf("Enter the square of the region #%hu (min: %f, max: %f): ", change_rec_num, SQUARE_MIN, SQUARE_MAX);
+						bool is_input_valid = false;
+						input_float(&temp.square, &is_input_valid, SQUARE_MIN, SQUARE_MAX);
+
+						if (!is_input_valid)
+						{
+							is_data_input_correct = false;
+						}
+						else
+						{
+							inv_data = '\0';
+							printf("Enter the population of the region #%hu (min: %lu, max: %llu): ", change_rec_num, POPULATION_MIN, POPULATION_MAX);
+							scanf_s("%llu%c", &temp.population, &inv_data, 1);
+
+							if (!valid_long_input(temp.population, POPULATION_MIN, POPULATION_MAX, inv_data))
+							{
+								is_data_input_correct = false;
+							}
+						}
+					}
+				} while (!is_data_input_correct);
+
+				if (!edit_data_in_file(file, path, temp, change_rec_num - 1))
+				{
+					printf("Press enter to exit...");
+					_getch();
+					return 0;
+				}
+
+				if (temp.name != NULL)
+				{
+					free(temp.name);
+				}
+
+				fclose(file);
+			}
 			break;
 		case SORT_REC:
 			break;
@@ -584,18 +669,8 @@ bool is_empty(char* name, bool* cannot_open)
 	return pos == 0;
 }
 
-bool read_all_data_from_file(char* path, country_data** data, ushort* size)
+bool read_all_data_from_file(FILE* file, country_data** data, ushort* size)
 {
-	FILE* file;
-
-	fopen_s(&file, path, "rb");
-
-	if (file == NULL)
-	{
-		printf("\nError: cannot open the file! The file is not in the directory or the name of the file is wrong. Make sure that the file has extention .mf\n");
-		return false;
-	}
-
 	fseek(file, 5, SEEK_SET);
 	
 	ushort counter = 0;
@@ -604,7 +679,6 @@ bool read_all_data_from_file(char* path, country_data** data, ushort* size)
 	if (*data == NULL)
 	{
 		printf("\nError: the memory can't be allocated!\n");
-		fclose(file);
 		return false;
 	}
 
@@ -638,7 +712,6 @@ bool read_all_data_from_file(char* path, country_data** data, ushort* size)
 					}
 					free(*data);
 					*data = NULL;
-					fclose(file);
 					return false;
 				}
 
@@ -656,7 +729,6 @@ bool read_all_data_from_file(char* path, country_data** data, ushort* size)
 				}
 				free(*data);
 				*data = NULL;
-				fclose(file);
 				return false;
 			}
 
@@ -673,7 +745,6 @@ bool read_all_data_from_file(char* path, country_data** data, ushort* size)
 					}
 					free(*data);
 					*data = NULL;
-					fclose(file);
 					return false;
 				}
 			}
@@ -690,7 +761,6 @@ bool read_all_data_from_file(char* path, country_data** data, ushort* size)
 				}
 				free(*data);
 				*data = NULL;
-				fclose(file);
 				return false;
 			}
 
@@ -705,7 +775,6 @@ bool read_all_data_from_file(char* path, country_data** data, ushort* size)
 				}
 				free(*data);
 				*data = NULL;
-				fclose(file);
 				return false;
 			}
 
@@ -719,8 +788,6 @@ bool read_all_data_from_file(char* path, country_data** data, ushort* size)
 	}
 
 	*size = counter;
-
-	fclose(file);
 
 	return true;
 }
@@ -932,7 +999,7 @@ void prepare_path(char** path)
 	}
 }
 
-void read_display_data_from_file(char* path, ushort start_rec, ushort end_rec)
+bool read_display_data_from_file(char* path, ushort start_rec, ushort end_rec)
 {
 	FILE* file;
 
@@ -948,9 +1015,10 @@ void read_display_data_from_file(char* path, ushort start_rec, ushort end_rec)
 
 	ushort counter = 0;
 	bool is_continue_working = true;
+	country_data one_rec;
+	one_rec.name = NULL;
 	do
-	{
-		country_data one_rec;
+	{		
 		size_t name_length = 0;
 		if (fread(&name_length, sizeof(name_length), 1, file) != 1)
 		{
@@ -1023,12 +1091,108 @@ void read_display_data_from_file(char* path, ushort start_rec, ushort end_rec)
 
 	if (start_rec > counter)
 	{
-		printf("\nError: the number of start record is bigger than the total number of records in file: %d\n", counter);
+		printf("\Warning: the number of start record is bigger than the total number of records in file: %d\n", counter);
 	}
 	else if (counter < end_rec)
 	{
-		printf("\nError: the number of end record is bigger than the total number of records in file: %d\n", counter);
+		printf("\Warning: the number of end record is bigger than the total number of records in file: %d\n", counter);
+	}
+
+	if (one_rec.name != NULL)
+	{
+		free(one_rec.name);
 	}
 
 	fclose(file);
+
+	return true;
+}
+
+bool edit_data_in_file(FILE* file, char* path, country_data obj, ushort index)
+{
+	char* key = malloc(KEY_SYMBOLS * sizeof(char));
+	if (key == NULL)
+	{
+		printf("\nError: the memory can't be allocated!\n");
+		return false;
+	}
+
+	fread(key, sizeof(char), KEY_SYMBOLS, file);
+	country_data* data_from_file;
+	ushort size = 0;
+
+	if (!read_all_data_from_file(file, &data_from_file, &size))
+	{
+		return false;
+	}
+
+
+	strcpy_s(data_from_file[index].name, sizeof(obj.name), obj.name);
+	data_from_file[index].square = obj.square;
+	data_from_file[index].population = obj.population;
+
+	fclose(file);
+
+	if (!clear_the_file(path))
+	{
+		return false;
+	}
+
+	fopen_s(&file, path, "ab");
+
+	if (file == NULL)
+	{
+		printf("\nError: cannot open the file! The file is not in the directory or the name of the file is wrong. Make sure that the file has extention .mf\n");
+		return false;
+	}
+
+	fwrite(key, sizeof(char), KEY_SYMBOLS, file);
+	write_data_to_file(file, data_from_file, size);
+
+	if (data_from_file != NULL)
+	{
+		for (ushort i = 0; i < size; i++)
+		{
+			free(data_from_file[i].name);
+			data_from_file[i].name = NULL;
+		}
+
+		free(data_from_file);
+		data_from_file = NULL;
+	}
+
+	free(key);
+	fclose(file);
+
+	return true;
+}
+
+void write_data_to_file(FILE* file, country_data* data, ushort size)
+{
+	fseek(file, 5, SEEK_SET);
+	for (ushort i = 0; i < size; i++)
+	{
+		size_t size_of_word = strlen(data[i].name);
+		fwrite(&size_of_word, sizeof(size_of_word), 1, file);
+		fwrite(data[i].name, sizeof(char), size_of_word, file);
+		fwrite(&data[i].square, sizeof(data[i].square), 1, file);
+		fwrite(&data[i].population, sizeof(data[i].population), 1, file);
+	}
+}
+
+bool clear_the_file(char* path)
+{
+	FILE* file;
+
+	fopen_s(&file, path, "wb");
+
+	if (file == NULL)
+	{
+		printf("\nError: cannot clear the file!\n");
+		return false;
+	}
+
+	fclose(file);
+
+	return true;
 }
