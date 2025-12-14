@@ -28,6 +28,11 @@
 #define SQUARE_MAX 1e9f
 #define POPULATION_MIN 0
 #define POPULATION_MAX 100000000000
+#define SORT_ASCEND '1'
+#define SORT_DESCEND '2'
+#define SORT_PAR_NAME '1'
+#define SORT_PAR_SQUARE '2'
+#define SORT_PAR_POPULAION '3'
 
 #define EPS 1e-7f
 
@@ -75,6 +80,24 @@ void write_data_to_file(FILE* file, country_data* data, ushort size);
 bool clear_the_file(char* path);
 
 bool delete_data_from_file(FILE* file, char* path, ushort index);
+
+bool sort_data_in_file(FILE* file, char* path, char option_order, char option_paremetr);
+
+void sort_data(country_data* data, ushort size, char key[], char option_order, char option_par);
+
+bool pred_name_asc(country_data el1, country_data el2);
+
+bool pred_name_desc(country_data el1, country_data el2);
+
+bool pred_square_asc(country_data el1, country_data el2);
+
+bool pred_square_desc(country_data el1, country_data el2);
+
+bool pred_population_asc(country_data el1, country_data el2);
+
+bool pred_population_desc(country_data el1, country_data el2);
+
+void swap(country_data* el1, country_data* el2);
 
 int main()
 {
@@ -443,6 +466,64 @@ int main()
 			}
 			break;
 		case SORT_REC:
+			prepare_path(&path);
+			fopen_s(&file, path, "r+b");
+
+			if (file == NULL)
+			{
+				printf("\nError: cannot open the file! The file is not in the directory or the name of the file is wrong. Make sure that the file has extention .mf\n");
+			}
+			else
+			{
+				char sort_option_order = '\0';
+				bool is_correct = false;
+				do
+				{
+					printf("Choose the order to sort(1 - by ascending, 2 - by descending): ");
+					sort_option_order = getchar();
+					clear_the_input_buffer();
+
+					if (sort_option_order == SORT_ASCEND || sort_option_order == SORT_DESCEND)
+					{
+						is_correct = true;
+					}
+					else
+					{
+						printf("\nError: invalid option chosen. Try again!\n");
+						is_correct = false;
+					}
+
+				} while (!is_correct);
+
+				char sort_option_par = '\0';
+				is_correct = false;
+				do
+				{
+					printf("Choose the sort parametr(1 - name, 2 - square, 3 - population): ");
+					sort_option_par = getchar();
+					clear_the_input_buffer();
+
+					if (sort_option_par == SORT_PAR_NAME || sort_option_par == SORT_PAR_SQUARE || sort_option_par == SORT_PAR_POPULAION)
+					{
+						is_correct = true;
+					}
+					else
+					{
+						printf("\nError: invalid option chosen. Try again!\n");
+						is_correct = false;
+					}
+
+				} while (!is_correct);
+
+				if (!sort_data_in_file(file,path, sort_option_order, sort_option_par))
+				{
+					printf("Press enter to exit...");
+					_getch();
+					return 0;
+				}
+
+				fclose(file);
+			}
 			break;
 		case INSERT_DATA:
 			break;
@@ -1373,4 +1454,208 @@ bool delete_data_from_file(FILE* file, char* path, ushort index)
 	printf("Data deleted correctly\n");
 
 	return true;
+}
+
+bool sort_data_in_file(FILE* file, char* path, char option_order, char option_paremetr)
+{
+	fseek(file, KEY_SYMBOLS, SEEK_SET);
+	country_data* data_from_file;
+	ushort size = 0;
+
+	if (!read_all_data_from_file(file, &data_from_file, &size))
+	{
+		return false;
+	}
+
+	// x1x2x3x4x5 + \0
+	char key[KEY_SYMBOLS + 1];
+
+	sort_data(data_from_file, size, key, option_order, option_paremetr);
+
+	fclose(file);
+
+	if (!clear_the_file(path))
+	{
+		for (ushort i = 0; i < size; i++)
+		{
+			free(data_from_file[i].name);
+			data_from_file[i].name = NULL;
+		}
+		free(data_from_file);
+		data_from_file = NULL;
+		return false;
+	}
+
+	fopen_s(&file, path, "ab");
+
+	if (file == NULL)
+	{
+		printf("\nError: cannot open the file! The file is not in the directory or the name of the file is wrong. Make sure that the file has extention .mf\n");
+		for (ushort i = 0; i < size; i++)
+		{
+			free(data_from_file[i].name);
+			data_from_file[i].name = NULL;
+		}
+		free(data_from_file);
+		data_from_file = NULL;
+		return false;
+	}
+	
+	// new key written
+	fwrite(key, sizeof(char), KEY_SYMBOLS, file);
+	write_data_to_file(file, data_from_file, size);
+
+	if (data_from_file != NULL)
+	{
+		for (ushort i = 0; i < size; i++)
+		{
+			free(data_from_file[i].name);
+			data_from_file[i].name = NULL;
+		}
+
+		free(data_from_file);
+		data_from_file = NULL;
+	}
+
+	fclose(file);
+
+	printf("Data sorted successfully\n");
+
+	return true;
+}
+
+void sort_data(country_data* data, ushort size,	char key[], char option_order, char option_par)
+{
+	bool (*pred)(country_data el1, country_data el2);
+
+	switch (option_par)
+	{
+	case SORT_PAR_NAME:
+		switch (option_order)
+		{
+		case SORT_ASCEND:
+			pred = pred_name_asc;
+			key = "11100";
+			break;
+		case SORT_DESCEND:
+			pred = pred_name_desc;
+			key = "11100";
+			break;
+		default:
+			printf("\nError: unexpected option_parametr caught\n");
+			return;
+			break;
+		}
+		break;
+	case SORT_PAR_SQUARE:
+		switch (option_order)
+		{
+		case SORT_ASCEND:
+			pred = pred_square_asc;
+			key = "11010";
+			break;
+		case SORT_DESCEND:
+			pred = pred_square_desc;
+			key = "11010";
+			break;
+		default:
+			printf("\nError: unexpected option_parametr caught\n");
+			return;
+			break;
+		}
+		break;
+	case SORT_PAR_POPULAION:
+		switch (option_order)
+		{
+		case SORT_ASCEND:
+			pred = pred_population_asc;
+			key = "11001";
+			break;
+		case SORT_DESCEND:
+			pred = pred_population_desc;
+			key = "11001";
+			break;
+		default:
+			printf("\nError: unexpected option_parametr caught\n");
+			return;
+			break;
+		}
+		break;
+	default:
+		printf("\nError: unexpected option_parametr caught\n");
+		return;
+		break;
+	}
+
+	for (ushort i = 0; i < size - 1; i++)
+	{
+		for (ushort j = 0; j < size - i - 1; j++)
+		{
+			if ((*pred)(data[j], data[j + 1]))
+			{
+				swap(&data[j], &data[j + 1]);
+			}
+		}
+	}
+}
+
+bool pred_name_asc(country_data el1, country_data el2)
+{
+	if (strcmp(el1.name, el2.name) > 0)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+bool pred_name_desc(country_data el1, country_data el2)
+{
+	return !(pred_name_asc(el1, el2));
+}
+
+bool pred_square_asc(country_data el1, country_data el2)
+{
+	if (el1.square - el2.square > EPS)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+bool pred_square_desc(country_data el1, country_data el2)
+{
+	return !(pred_square_asc(el1, el2));
+}
+
+bool pred_population_asc(country_data el1, country_data el2)
+{
+	if (el1.population > el2.population)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+bool pred_population_desc(country_data el1, country_data el2)
+{
+	return !(pred_population_asc(el1, el2));
+}
+
+void swap(country_data* el1, country_data* el2)
+{
+	country_data temp;
+	temp.name = (*el1).name;
+	temp.square = (*el1).square;
+	temp.population = (*el1).population;
+
+	(*el1).name = (*el2).name;
+	(*el1).square = (*el2).square;
+	(*el1).population = (*el2).population;
+
+	(*el2).name = temp.name;
+	(*el2).square = temp.square;
+	(*el2).population = temp.population;
 }
