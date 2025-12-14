@@ -18,7 +18,7 @@
 
 #define MAX_NAME_SIZE 25
 #define FILE_EXT ".mf"
-#define KEY_SYMBOLS 5
+#define KEY_SYMBOLS 6
 #define MIN_DATA_ALLOC 2
 #define MAX_DATA_POSSIBLE_ALLOC 100
 #define MIN_COUNT_REC 1
@@ -597,7 +597,7 @@ void create_file(char* path, bool *is_err)
 		if (file != NULL)
 		{
 			printf("The file with .mf extention was successfully created!\n");
-			char key[] = "10000";
+			char key[] = "100000";
 			fwrite(key, sizeof(key[0]), (sizeof(key) / sizeof(key[0])) - 1, file);
 			fclose(file);
 			*is_err = false;
@@ -781,7 +781,7 @@ bool is_empty(char* name, bool* cannot_open)
 
 bool read_all_data_from_file(FILE* file, country_data** data, ushort* size)
 {
-	fseek(file, 5, SEEK_SET);
+	fseek(file, KEY_SYMBOLS, SEEK_SET);
 	
 	ushort counter = 0;
 	ushort allocated = MIN_DATA_ALLOC;
@@ -1121,7 +1121,7 @@ bool read_display_data_from_file(char* path, ushort start_rec, ushort end_rec)
 		return false;
 	}
 
-	fseek(file, 5, SEEK_SET);
+	fseek(file, KEY_SYMBOLS, SEEK_SET);
 
 	ushort counter = 0;
 	bool is_continue_working = true;
@@ -1330,7 +1330,7 @@ bool edit_data_in_file(FILE* file, char* path, country_data obj, ushort index)
 
 void write_data_to_file(FILE* file, country_data* data, ushort size)
 {
-	fseek(file, 5, SEEK_SET);
+	fseek(file, KEY_SYMBOLS, SEEK_SET);
 	for (ushort i = 0; i < size; i++)
 	{
 		size_t size_of_word = strlen(data[i].name);
@@ -1550,12 +1550,12 @@ void sort_data(country_data* data, ushort size,	char* key, char option_order, ch
 		{
 		case SORT_ASCEND:
 			pred = pred_name_asc;
-			strncpy_s(key, KEY_SYMBOLS + 1, "11100", KEY_SYMBOLS);
+			strncpy_s(key, KEY_SYMBOLS + 1, "111000", KEY_SYMBOLS);
 			key[KEY_SYMBOLS] = '\0';
 			break;
 		case SORT_DESCEND:
 			pred = pred_name_desc;
-			strncpy_s(key, KEY_SYMBOLS + 1, "11100", KEY_SYMBOLS);
+			strncpy_s(key, KEY_SYMBOLS + 1, "111001", KEY_SYMBOLS);
 			key[KEY_SYMBOLS] = '\0';
 			break;
 		default:
@@ -1569,12 +1569,12 @@ void sort_data(country_data* data, ushort size,	char* key, char option_order, ch
 		{
 		case SORT_ASCEND:
 			pred = pred_square_asc;
-			strncpy_s(key, KEY_SYMBOLS + 1, "11010", KEY_SYMBOLS);
+			strncpy_s(key, KEY_SYMBOLS + 1, "110100", KEY_SYMBOLS);
 			key[KEY_SYMBOLS] = '\0';
 			break;
 		case SORT_DESCEND:
 			pred = pred_square_desc;
-			strncpy_s(key, KEY_SYMBOLS + 1, "11010", KEY_SYMBOLS);
+			strncpy_s(key, KEY_SYMBOLS + 1, "110101", KEY_SYMBOLS);
 			key[KEY_SYMBOLS] = '\0';
 			break;
 		default:
@@ -1588,12 +1588,12 @@ void sort_data(country_data* data, ushort size,	char* key, char option_order, ch
 		{
 		case SORT_ASCEND:
 			pred = pred_population_asc;
-			strncpy_s(key, KEY_SYMBOLS + 1, "11001", KEY_SYMBOLS);
+			strncpy_s(key, KEY_SYMBOLS + 1, "110010", KEY_SYMBOLS);
 			key[KEY_SYMBOLS] = '\0';
 			break;
 		case SORT_DESCEND:
 			pred = pred_population_desc;
-			strncpy_s(key, KEY_SYMBOLS + 1, "11001", KEY_SYMBOLS);
+			strncpy_s(key, KEY_SYMBOLS + 1, "110011", KEY_SYMBOLS);
 			key[KEY_SYMBOLS] = '\0';
 			break;
 		default:
