@@ -61,18 +61,24 @@ bool valid_long_input(ullong data, ullong min, ullong max, char inv_data);
 
 void input_float(float* result, bool* is_data_valid, float min_val, float max_val);
 
+void print_data(country_data* data, ushort size, bool print_data_stack_num);
+
+void prepare_path(char** path);
+
+void read_display_data_from_file(char* path, ushort start_rec, ushort end_rec);
+
 int main()
 {
 	printf("This is file manager program. It stores data about districts in file. Here are the menu that shows what it can do: \n");
 	printf("Menu: \n");
-	printf("File commands: \t\tRecord commands:\n");
-	printf("1 - create file \t4 - make new records\n");
-	printf("2 - read from file \t5 - read data from file\n");
-	printf("3 - delete file \t6 - edit records\n");
-	printf("\t\t\t7 - sort records\n");
-	printf("\t\t\t8 - insert data to file\n");
-	printf("\t\t\t9 - delete data from file\n");
-	printf("\t\t\t10 - exit program\n");
+	printf("File commands: \t\t\tRecord commands:\n");
+	printf("1 - create file \t\t4 - make new records\n");
+	printf("2 - read all data from file \t5 - read data from file\n");
+	printf("3 - delete file \t\t6 - edit records\n");
+	printf("\t\t\t\t7 - sort records\n");
+	printf("\t\t\t\t8 - insert data to file\n");
+	printf("\t\t\t\t9 - delete data from file\n");
+	printf("\t\t\t\t10 - exit program\n");
 
 	ushort option = NON_OPTION;
 	char* path = malloc(MAX_NAME_SIZE);
@@ -119,17 +125,7 @@ int main()
 			} while (is_err_occured);
 			break;
 		case READ_FILE:
-			// func prepare_path
-			if (path[0] == '\0')
-			{
-				bool is_valid = false, cannot_open = false;
-				do
-				{
-					enter_new_file(path);
-					is_valid = validate_file(path, &cannot_open);
-				} while (!is_valid || cannot_open);
-			}
-
+			prepare_path(&path);
 			fopen_s(&file, path, "rb");
 
 			if (file == NULL)
@@ -161,29 +157,13 @@ int main()
 					return 0;
 				}
 
-				for (ushort i = 0; i < count_data; i++)
-				{
-					printf("Data stack #%hu\n", i + 1);
-					printf("Region: %s\n", data[i].name);
-					printf("Square: %f\n", data[i].square);
-					printf("Population: %llu\n", data[i].population);
-					printf("\n");
-				}
+				print_data(data, count_data, true);
 
 				fclose(file);
 			}
 			break;
 		case DELETE_FILE:
-			if (path[0] == '\0')
-			{
-				bool is_valid = false, cannot_open = false;
-				do
-				{
-					enter_new_file(path);
-					is_valid = validate_file(path, &cannot_open);
-				} while (!is_valid || cannot_open);
-			}
-
+			prepare_path(&path);
 			fopen_s(&file, path, "rb");
 
 			// delete file
@@ -218,17 +198,8 @@ int main()
 			}
 			break;
 		case MK_RECORDS:
-			if (path[0] == '\0')
-			{
-				bool is_valid = false, cannot_open = false;
-				do
-				{
-					enter_new_file(path);
-					is_valid = validate_file(path, &cannot_open);
-				} while (!is_valid || cannot_open);
-			}
-
-			int r = fopen_s(&file, path, "ab");
+			prepare_path(&path);
+			fopen_s(&file, path, "ab");
 
 			if (file == NULL)
 			{
@@ -236,7 +207,7 @@ int main()
 			}
 			else
 			{
-				// check what is in file (count written data) 
+				// idea: check what is in file (count written data) 
 				ushort count_rec = 0;
 				char inv_data = '\0';
 				do
@@ -336,16 +307,51 @@ int main()
 				{
 					size_t size_of_word = strlen(data[i].name);
 					fwrite(&size_of_word, sizeof(size_of_word), 1, file);
-					fwrite(data[i].name, sizeof(data[i].name), 1, file);
+					fwrite(data[i].name, sizeof(char), size_of_word, file);
 					fwrite(&data[i].square, sizeof(data[i].square), 1, file);
 					fwrite(&data[i].population, sizeof(data[i].population), 1, file);
 				}
 
 				fclose(file);
-			}
+			}			
 			
 			break;
 		case READ_DATA:
+			prepare_path(&path);
+			fopen_s(&file, path, "rb");
+
+			// read data from file
+			if (file == NULL)
+			{
+				printf("\nError: cannot open the file! The file is not in the directory or the name of the file is wrong. Make sure that the file has extention .mf\n");
+			}
+			else
+			{
+				ushort start_rec_num = 0;
+				char inv_data = '\0';
+				do
+				{
+					printf("Enter the number of record to start read from file(from %d to %d): ", MIN_COUNT_REC, MAX_COUNT_REC);
+					scanf_s("%hu%c", &start_rec_num, &inv_data, 1);
+
+				} while (!valid_input(start_rec_num, MIN_COUNT_REC, MAX_COUNT_REC, inv_data));
+
+				ushort count_rec = 0;
+				inv_data = '\0';
+				if (MAX_COUNT_REC != start_rec_num)
+				{
+					do
+					{
+						printf("Enter counts of records to read from starting record(from %d to %d): ", MIN_COUNT_REC, MAX_COUNT_REC - start_rec_num);
+						scanf_s("%hu%c", &count_rec, &inv_data, 1);
+
+					} while (!valid_input(count_rec, MIN_COUNT_REC, MAX_COUNT_REC - start_rec_num, inv_data));
+				}
+
+				read_display_data_from_file(path, start_rec_num - 1, start_rec_num + count_rec - 1);
+
+				fclose(file);
+			}
 			break;
 		case EDIT_REC:
 			break;
@@ -594,23 +600,54 @@ bool read_all_data_from_file(char* path, country_data** data, ushort* size)
 	
 	ushort counter = 0;
 	ushort allocated = MIN_DATA_ALLOC;
-	*data = malloc(MIN_DATA_ALLOC * sizeof(country_data));
-
-	// can make data validation while reading data
-	// if wrong data => data_corruption_error
-	bool is_continue = true;
-	while (is_continue)
+	*data = malloc(allocated * sizeof(country_data));
+	if (*data == NULL)
 	{
-		if (counter >= allocated)
+		printf("\nError: the memory can't be allocated!\n");
+		fclose(file);
+		return false;
+	}
+
+	// read loop stops when cannot read a valid name_length
+	bool is_continue_working = true;
+	do
+	{
+		size_t name_length = 0;
+		if (fread(&name_length, sizeof(name_length), 1, file) != 1)
+		{			
+			is_continue_working = false;
+		}
+
+		if (is_continue_working)
 		{
-			allocated *= 2;
-			if (allocated > MAX_DATA_POSSIBLE_ALLOC)
+			if (counter >= allocated)
 			{
-				allocated = MAX_DATA_POSSIBLE_ALLOC;
+				allocated *= 2;
+				if (allocated > MAX_DATA_POSSIBLE_ALLOC)
+				{
+					allocated = MAX_DATA_POSSIBLE_ALLOC;
+				}
+
+				country_data* temp = realloc(*data, allocated * sizeof(country_data));
+				if (temp == NULL)
+				{
+					printf("\nError: the memory can't be allocated!\n");
+					for (ushort i = 0; i < counter; i++)
+					{
+						free((*data)[i].name);
+					}
+					free(*data);
+					*data = NULL;
+					fclose(file);
+					return false;
+				}
+
+				*data = temp;
+				temp = NULL;
 			}
 
-			country_data* temp = realloc(*data, allocated * sizeof(country_data));
-			if (temp == NULL)
+			(*data)[counter].name = malloc((name_length + 1) * sizeof(char));
+			if ((*data)[counter].name == NULL)
 			{
 				printf("\nError: the memory can't be allocated!\n");
 				for (ushort i = 0; i < counter; i++)
@@ -623,33 +660,67 @@ bool read_all_data_from_file(char* path, country_data** data, ushort* size)
 				return false;
 			}
 
-			*data = temp;
-			temp = NULL;
-		}
-
-		size_t name_length = 0;
-		is_continue = (bool)fread(&name_length, sizeof(size_t), 1, file);
-		(*data)[counter].name = malloc((name_length + 1) * sizeof(char));
-		if ((*data)[counter].name == NULL)
-		{
-			printf("\nError: the memory can't be allocated!\n");
-			for (ushort i = 0; i < counter; i++)
+			if (name_length > 0)
 			{
-				free((*data)[i].name);
+				// reading region name
+				if (fread((*data)[counter].name, sizeof(char), name_length, file) != name_length)
+				{
+					printf("\nError: data is corrupted (name read failed)!\n");
+					free((*data)[counter].name);
+					for (ushort i = 0; i < counter; i++)
+					{
+						free((*data)[i].name);
+					}
+					free(*data);
+					*data = NULL;
+					fclose(file);
+					return false;
+				}
 			}
-			free(*data);
-			*data = NULL;
-			fclose(file);
-			return false;
-		}
-		fread((*data)[counter].name, sizeof((*data)[counter].name), 1, file);
-		fread(&(*data)[counter].square, sizeof((*data)[counter].square), 1, file);
-		fread(&(*data)[counter].population, sizeof((*data)[counter].population), 1, file);
+			(*data)[counter].name[name_length] = '\0';
 
-		counter++;
+			// reading square
+			if (fread(&(*data)[counter].square, sizeof((*data)[counter].square), 1, file) != 1)
+			{
+				printf("\nError: data is corrupted (square read failed)!\n");
+				free((*data)[counter].name);
+				for (ushort i = 0; i < counter; i++)
+				{
+					free((*data)[i].name);
+				}
+				free(*data);
+				*data = NULL;
+				fclose(file);
+				return false;
+			}
+
+			// reading population
+			if (fread(&(*data)[counter].population, sizeof((*data)[counter].population), 1, file) != 1)
+			{
+				printf("\nError: data is corrupted (population read failed)!\n");
+				free((*data)[counter].name);
+				for (ushort i = 0; i < counter; i++)
+				{
+					free((*data)[i].name);
+				}
+				free(*data);
+				*data = NULL;
+				fclose(file);
+				return false;
+			}
+
+			counter++;
+		}
+	} while (is_continue_working);
+
+	if (counter == 0)
+	{
+		printf("The file has no data inside.\n");
 	}
 
-	*size = --counter;
+	*size = counter;
+
+	fclose(file);
 
 	return true;
 }
@@ -831,4 +902,133 @@ void input_float(float* result, bool* is_data_valid, float min_val, float max_va
 
 	*is_data_valid = true;
 	*result = number;
+}
+
+void print_data(country_data* data, ushort size, bool print_data_stack_num)
+{
+	for (ushort i = 0; i < size; i++)
+	{
+		if (print_data_stack_num)
+		{
+			printf("Data stack #%hu\n", i + 1);
+		}		
+		printf("Region: %s\n", data[i].name);
+		printf("Square: %f\n", data[i].square);
+		printf("Population: %llu\n", data[i].population);
+		printf("\n");
+	}
+}
+
+void prepare_path(char** path)
+{
+	if ((*path)[0] == '\0')
+	{
+		bool is_valid = false, cannot_open = false;
+		do
+		{
+			enter_new_file(*path);
+			is_valid = validate_file(*path, &cannot_open);
+		} while (!is_valid || cannot_open);
+	}
+}
+
+void read_display_data_from_file(char* path, ushort start_rec, ushort end_rec)
+{
+	FILE* file;
+
+	fopen_s(&file, path, "rb");
+
+	if (file == NULL)
+	{
+		printf("\nError: cannot open the file! The file is not in the directory or the name of the file is wrong. Make sure that the file has extention .mf\n");
+		return false;
+	}
+
+	fseek(file, 5, SEEK_SET);
+
+	ushort counter = 0;
+	bool is_continue_working = true;
+	do
+	{
+		country_data one_rec;
+		size_t name_length = 0;
+		if (fread(&name_length, sizeof(name_length), 1, file) != 1)
+		{
+			is_continue_working = false;
+		}
+
+		if (is_continue_working)
+		{
+			if (counter >= start_rec && counter <= end_rec)
+			{
+				one_rec.name = malloc((name_length + 1) * sizeof(char));
+				if (one_rec.name == NULL)
+				{
+					printf("\nError: the memory can't be allocated!\n");
+					free(one_rec.name);
+					one_rec.name = NULL;
+					fclose(file);
+					return false;
+				}
+
+				if (name_length > 0)
+				{
+					// reading region name
+					if (fread(one_rec.name, sizeof(char), name_length, file) != name_length)
+					{
+						printf("\nError: data is corrupted (name read failed)!\n");
+						free(one_rec.name);
+						one_rec.name = NULL;
+						fclose(file);
+						return false;
+					}
+				}
+				one_rec.name[name_length] = '\0';
+
+				// reading square
+				if (fread(&one_rec.square, sizeof(one_rec.square), 1, file) != 1)
+				{
+					printf("\nError: data is corrupted (square read failed)!\n");
+					free(one_rec.name);
+					one_rec.name = NULL;
+					fclose(file);
+					return false;
+				}
+
+				// reading population
+				if (fread(&one_rec.population, sizeof(one_rec.population), 1, file) != 1)
+				{
+					printf("\nError: data is corrupted (population read failed)!\n");
+					free(one_rec.name);
+					one_rec.name = NULL;
+					fclose(file);
+					return false;
+				}
+
+				printf("Data stack #%hu\n", counter + 1);
+				print_data(&one_rec, 1, false);
+			}
+			else
+			{
+				// skip bytes
+				fseek(file, name_length * sizeof(char), SEEK_CUR);
+				fseek(file, sizeof(float), SEEK_CUR);
+				fseek(file, sizeof(ullong), SEEK_CUR);
+			}
+
+			counter++;
+		}
+
+	} while (is_continue_working);
+
+	if (start_rec > counter)
+	{
+		printf("\nError: the number of start record is bigger than the total number of records in file: %d\n", counter);
+	}
+	else if (counter < end_rec)
+	{
+		printf("\nError: the number of end record is bigger than the total number of records in file: %d\n", counter);
+	}
+
+	fclose(file);
 }
