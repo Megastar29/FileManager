@@ -83,7 +83,7 @@ bool delete_data_from_file(FILE* file, char* path, ushort index);
 
 bool sort_data_in_file(FILE* file, char* path, char option_order, char option_paremetr);
 
-void sort_data(country_data* data, ushort size, char key[], char option_order, char option_par);
+void sort_data(country_data* data, ushort size, char* key, char option_order, char option_par);
 
 bool pred_name_asc(country_data el1, country_data el2);
 
@@ -1468,7 +1468,13 @@ bool sort_data_in_file(FILE* file, char* path, char option_order, char option_pa
 	}
 
 	// x1x2x3x4x5 + \0
-	char key[KEY_SYMBOLS + 1];
+	char* key = malloc((KEY_SYMBOLS + 1) * sizeof(char));
+	if (key == NULL)
+	{
+		printf("\nError: the memory can't be allocated!\n");
+		fclose(file);
+		return false;
+	}
 
 	sort_data(data_from_file, size, key, option_order, option_paremetr);
 
@@ -1482,6 +1488,8 @@ bool sort_data_in_file(FILE* file, char* path, char option_order, char option_pa
 			data_from_file[i].name = NULL;
 		}
 		free(data_from_file);
+		free(key);
+		fclose(file);
 		data_from_file = NULL;
 		return false;
 	}
@@ -1497,6 +1505,8 @@ bool sort_data_in_file(FILE* file, char* path, char option_order, char option_pa
 			data_from_file[i].name = NULL;
 		}
 		free(data_from_file);
+		free(key);
+		fclose(file);
 		data_from_file = NULL;
 		return false;
 	}
@@ -1517,6 +1527,11 @@ bool sort_data_in_file(FILE* file, char* path, char option_order, char option_pa
 		data_from_file = NULL;
 	}
 
+	if (key != NULL)
+	{
+		free(key);
+	}
+
 	fclose(file);
 
 	printf("Data sorted successfully\n");
@@ -1524,7 +1539,7 @@ bool sort_data_in_file(FILE* file, char* path, char option_order, char option_pa
 	return true;
 }
 
-void sort_data(country_data* data, ushort size,	char key[], char option_order, char option_par)
+void sort_data(country_data* data, ushort size,	char* key, char option_order, char option_par)
 {
 	bool (*pred)(country_data el1, country_data el2);
 
@@ -1535,11 +1550,13 @@ void sort_data(country_data* data, ushort size,	char key[], char option_order, c
 		{
 		case SORT_ASCEND:
 			pred = pred_name_asc;
-			key = "11100";
+			strncpy_s(key, KEY_SYMBOLS + 1, "11100", KEY_SYMBOLS);
+			key[KEY_SYMBOLS] = '\0';
 			break;
 		case SORT_DESCEND:
 			pred = pred_name_desc;
-			key = "11100";
+			strncpy_s(key, KEY_SYMBOLS + 1, "11100", KEY_SYMBOLS);
+			key[KEY_SYMBOLS] = '\0';
 			break;
 		default:
 			printf("\nError: unexpected option_parametr caught\n");
@@ -1552,11 +1569,13 @@ void sort_data(country_data* data, ushort size,	char key[], char option_order, c
 		{
 		case SORT_ASCEND:
 			pred = pred_square_asc;
-			key = "11010";
+			strncpy_s(key, KEY_SYMBOLS + 1, "11010", KEY_SYMBOLS);
+			key[KEY_SYMBOLS] = '\0';
 			break;
 		case SORT_DESCEND:
 			pred = pred_square_desc;
-			key = "11010";
+			strncpy_s(key, KEY_SYMBOLS + 1, "11010", KEY_SYMBOLS);
+			key[KEY_SYMBOLS] = '\0';
 			break;
 		default:
 			printf("\nError: unexpected option_parametr caught\n");
@@ -1569,11 +1588,13 @@ void sort_data(country_data* data, ushort size,	char key[], char option_order, c
 		{
 		case SORT_ASCEND:
 			pred = pred_population_asc;
-			key = "11001";
+			strncpy_s(key, KEY_SYMBOLS + 1, "11001", KEY_SYMBOLS);
+			key[KEY_SYMBOLS] = '\0';
 			break;
 		case SORT_DESCEND:
 			pred = pred_population_desc;
-			key = "11001";
+			strncpy_s(key, KEY_SYMBOLS + 1, "11001", KEY_SYMBOLS);
+			key[KEY_SYMBOLS] = '\0';
 			break;
 		default:
 			printf("\nError: unexpected option_parametr caught\n");
