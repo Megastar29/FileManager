@@ -99,6 +99,8 @@ bool pred_population_desc(country_data el1, country_data el2);
 
 void swap(country_data* el1, country_data* el2);
 
+bool insert_data_in_file(FILE* file, char* path, country_data obj, bool* is_sorted);
+
 int main()
 {
 	printf("This is file manager program. It stores data about districts in file. Here are the menu that shows what it can do: \n");
@@ -108,7 +110,7 @@ int main()
 	printf("2 - read all data from file \t5 - read data from file\n");
 	printf("3 - delete file \t\t6 - edit records\n");
 	printf("\t\t\t\t7 - sort records\n");
-	printf("\t\t\t\t8 - insert data to file\n");
+	printf("\t\t\t\t8 - insert data to file(sorting needed)\n");
 	printf("\t\t\t\t9 - delete data from file\n");
 	printf("\t\t\t\t10 - exit program\n");
 
@@ -186,6 +188,7 @@ int main()
 				{
 					printf("Press enter to exit...");
 					_getch();
+					fclose(file);
 					return 0;
 				}
 
@@ -225,6 +228,7 @@ int main()
 				}
 				else
 				{
+					printf("File deleting canceled\n");
 					fclose(file);
 				}
 			}
@@ -267,6 +271,7 @@ int main()
 						printf("\nError: the memory can't be allocated!\n");
 						printf("Press enter to exit...");
 						_getch();
+						fclose(file);
 						return 0;
 					}
 					data = temp;
@@ -283,6 +288,7 @@ int main()
 					printf("\nError: the memory can't be allocated!\n");
 					printf("Press enter to exit...");
 					_getch();
+					fclose(file);
 					return 0;
 				}
 
@@ -294,6 +300,7 @@ int main()
 						printf("\nError: the memory can't be allocated!\n");
 						printf("Press enter to exit...");
 						_getch();
+						fclose(file);
 						return 0;
 					}
 				}
@@ -334,9 +341,31 @@ int main()
 					}
 				}
 
-				write_data_to_file(file, data, count_rec);
-
 				fclose(file);
+				fopen_s(&file, path, "r+b");
+				if (file == NULL)
+				{
+					printf("\nError: cannot open the file! The file is not in the directory or the name of the file is wrong. Make sure that the file has extention .mf\n");
+				}
+				else
+				{
+					fseek(file, 0, SEEK_SET);
+					char* key = "100000";
+					fwrite(key, sizeof(char), KEY_SYMBOLS, file);
+
+					fclose(file);
+					fopen_s(&file, path, "ab");
+					if (file == NULL)
+					{
+						printf("\nError: cannot open the file! The file is not in the directory or the name of the file is wrong. Make sure that the file has extention .mf\n");
+					}
+					else
+					{
+						write_data_to_file(file, data, count_rec);
+
+						fclose(file);
+					}
+				}
 			}			
 			
 			break;
@@ -376,6 +405,7 @@ int main()
 				{
 					printf("Press enter to exit...");
 					_getch();
+					fclose(file);
 					return 0;
 				}
 
@@ -409,6 +439,7 @@ int main()
 				{
 					printf("\nError: the memory can't be allocated!\n");
 					printf("Press enter to exit...");
+					fclose(file);
 					_getch();
 					return 0;
 				}
@@ -454,6 +485,7 @@ int main()
 				{
 					printf("Press enter to exit...");
 					_getch();
+					fclose(file);
 					return 0;
 				}
 
@@ -518,6 +550,7 @@ int main()
 				if (!sort_data_in_file(file,path, sort_option_order, sort_option_par))
 				{
 					printf("Press enter to exit...");
+					fclose(file);
 					_getch();
 					return 0;
 				}
@@ -526,6 +559,81 @@ int main()
 			}
 			break;
 		case INSERT_DATA:
+			prepare_path(&path);
+			fopen_s(&file, path, "r+b");
+
+			if (file == NULL)
+			{
+				printf("\nError: cannot open the file! The file is not in the directory or the name of the file is wrong. Make sure that the file has extention .mf\n");
+			}
+			else
+			{				
+				char inv_data = '\0';
+				country_data temp;
+				temp.name = NULL;
+
+				temp.name = malloc(MAX_COUNTRY_NAME_SIZE * sizeof(char));
+				if (temp.name == NULL)
+				{
+					printf("\nError: the memory can't be allocated!\n");
+					printf("Press enter to exit...");
+					_getch();
+					return 0;
+				}
+
+				bool is_data_input_correct = true;
+				do
+				{
+					is_data_input_correct = true;
+					printf("Enter the name of the region #n (max %d characters): ", MAX_COUNTRY_NAME_SIZE - 1);
+					int err = scanf_s("%s", temp.name, MAX_COUNTRY_NAME_SIZE);
+					clear_the_input_buffer();
+
+					if (err == 0)
+					{
+						printf("\nError: too big data entered. Try again!\n");
+						is_data_input_correct = false;
+					}
+					else
+					{
+						printf("Enter the square of the region #n (min: %f, max: %f): ", SQUARE_MIN, SQUARE_MAX);
+						bool is_input_valid = false;
+						input_float(&temp.square, &is_input_valid, SQUARE_MIN, SQUARE_MAX);
+
+						if (!is_input_valid)
+						{
+							is_data_input_correct = false;
+						}
+						else
+						{
+							inv_data = '\0';
+							printf("Enter the population of the region #n (min: %lu, max: %llu): ", POPULATION_MIN, POPULATION_MAX);
+							scanf_s("%llu%c", &temp.population, &inv_data, 1);
+
+							if (!valid_long_input(temp.population, POPULATION_MIN, POPULATION_MAX, inv_data))
+							{
+								is_data_input_correct = false;
+							}
+						}
+					}
+				} while (!is_data_input_correct);
+
+				bool is_sorted = false;
+				bool result = insert_data_in_file(file, path, temp, &is_sorted);
+				if (!is_sorted)
+				{
+					printf("\nError: data in file is unsorted. Sort it first!\n");
+				}
+				else if (!result)
+				{
+					printf("Press enter to exit...");
+					fclose(file);
+					_getch();
+					return 0;
+				}
+
+				fclose(file);
+			}
 			break;
 		case DELETE_DATA:
 			prepare_path(&path);
@@ -1220,7 +1328,7 @@ bool read_display_data_from_file(char* path, ushort start_rec, ushort end_rec)
 
 bool edit_data_in_file(FILE* file, char* path, country_data obj, ushort index)
 {
-	char* key = malloc(KEY_SYMBOLS * sizeof(char));
+	char* key = malloc((KEY_SYMBOLS + 1) * sizeof(char));
 	if (key == NULL)
 	{
 		printf("\nError: the memory can't be allocated!\n");
@@ -1228,6 +1336,7 @@ bool edit_data_in_file(FILE* file, char* path, country_data obj, ushort index)
 	}
 
 	fread(key, sizeof(char), KEY_SYMBOLS, file);
+	key[KEY_SYMBOLS] = '\0';
 	country_data* data_from_file;
 	ushort size = 0;
 
@@ -1679,4 +1788,254 @@ void swap(country_data* el1, country_data* el2)
 	(*el2).name = temp.name;
 	(*el2).square = temp.square;
 	(*el2).population = temp.population;
+}
+
+bool insert_data_in_file(FILE* file, char* path, country_data obj, bool* is_sorted)
+{
+	fseek(file, 1, SEEK_SET);
+	char sort_key;
+	fread(&sort_key, sizeof(char), 1, file);
+
+	if (sort_key != '1')
+	{
+		*is_sorted = false;
+		return false;
+	}
+	else
+	{
+		*is_sorted = true;
+		fseek(file, 0, SEEK_SET);
+		char* key = malloc((KEY_SYMBOLS + 1) * sizeof(char));
+		if (key == NULL)
+		{
+			printf("\nError: the memory can't be allocated!\n");
+			return false;
+		}
+
+		fread(key, sizeof(char), KEY_SYMBOLS, file);
+		key[KEY_SYMBOLS] = '\0';
+		country_data* data_from_file;
+		ushort size = 0;
+
+		if (!read_all_data_from_file(file, &data_from_file, &size))
+		{
+			free(key);
+			return false;
+		}
+
+		ushort insert_index = 0;
+		bool is_last = false;
+		if (key[2] == '1')
+		{
+			if (key[5] == '0')
+			{
+				is_last = true;
+				for (ushort i = 0; i < size - 1; i++)
+				{
+					if (strcmp(obj.name, data_from_file[i].name) >= 0 && 
+						strcmp(obj.name, data_from_file[i + 1].name) <= 0)
+					{
+						insert_index = i + 1;
+						is_last = false;
+					}
+				}
+
+				if (is_last)
+				{
+					insert_index = size - 1;
+				}
+			}
+			else
+			{
+				is_last = true;
+				for (ushort i = 0; i < size - 1; i++)
+				{
+					if (strcmp(data_from_file[i].name, obj.name) >= 0 &&
+						strcmp(data_from_file[i + 1].name, obj.name) <= 0)
+					{
+						insert_index = i + 1;
+						is_last = false;
+					}
+				}
+
+				if (is_last)
+				{
+					insert_index = size - 1;
+				}
+			}
+		}
+		else if (key[3] == '1')
+		{
+			if (key[5] == '0')
+			{
+				is_last = true;
+				for (ushort i = 0; i < size - 1; i++)
+				{
+					if (obj.square - data_from_file[i].square >= EPS &&
+						data_from_file[i + 1].square - obj.square >= EPS)
+					{
+						insert_index = i + 1;
+						is_last = false;
+					}
+				}
+
+				if (is_last)
+				{
+					insert_index = size - 1;
+				}
+			}
+			else
+			{
+				is_last = true;
+				for (ushort i = 0; i < size - 1; i++)
+				{
+					if (obj.square - data_from_file[i].square <= EPS &&
+						data_from_file[i + 1].square - obj.square <= EPS)
+					{
+						insert_index = i + 1;
+						is_last = false;
+					}
+				}
+
+				if (is_last)
+				{
+					insert_index = size - 1;
+				}
+			}
+		}
+		else if (key[4] == '1')
+		{
+			if (key[5] == '0')
+			{
+				is_last = true;
+				for (ushort i = 0; i < size - 1; i++)
+				{
+					if (obj.square >= data_from_file[i].square &&
+						data_from_file[i + 1].square >= obj.square)
+					{
+						insert_index = i + 1;
+						is_last = false;
+					}
+				}
+
+				if (is_last)
+				{
+					insert_index = size - 1;
+				}
+			}
+			else
+			{
+				is_last = true;
+				for (ushort i = 0; i < size - 1; i++)
+				{
+					if (obj.square <= data_from_file[i].square &&
+						data_from_file[i + 1].square <= obj.square)
+					{
+						insert_index = i + 1;
+						is_last = false;
+					}
+				}
+
+				if (is_last)
+				{
+					insert_index = size - 1;
+				}
+			}
+		}
+
+		fclose(file);
+
+		if (!clear_the_file(path))
+		{
+			for (ushort i = 0; i < size; i++)
+			{
+				free(data_from_file[i].name);
+				data_from_file[i].name = NULL;
+			}
+			free(data_from_file);
+			data_from_file = NULL;
+			free(key);
+			return false;
+		}
+
+		fopen_s(&file, path, "ab");
+
+		if (file == NULL)
+		{
+			printf("\nError: cannot open the file! The file is not in the directory or the name of the file is wrong. Make sure that the file has extention .mf\n");
+			for (ushort i = 0; i < size; i++)
+			{
+				free(data_from_file[i].name);
+				data_from_file[i].name = NULL;
+			}
+			free(data_from_file);
+			data_from_file = NULL;
+			free(key);
+			return false;
+		}
+
+		fwrite(key, sizeof(char), KEY_SYMBOLS, file);
+
+		bool change_happened = false;
+		for (ushort i = 0; i < size; i++)
+		{
+			if (!is_last)
+			{
+				if (i == insert_index && !change_happened)
+				{
+					size_t size_of_obj_name = strlen(obj.name);
+					fwrite(&size_of_obj_name, sizeof(size_of_obj_name), 1, file);
+					fwrite(obj.name, sizeof(char), size_of_obj_name, file);
+					fwrite(&obj.square, sizeof(obj.square), 1, file);
+					fwrite(&obj.population, sizeof(obj.population), 1, file);
+					change_happened = true;
+					i--;
+				}
+				else if (change_happened || i != insert_index)
+				{
+					size_t size_of_word = strlen(data_from_file[i].name);
+					fwrite(&size_of_word, sizeof(size_of_word), 1, file);
+					fwrite(data_from_file[i].name, sizeof(char), size_of_word, file);
+					fwrite(&data_from_file[i].square, sizeof(data_from_file[i].square), 1, file);
+					fwrite(&data_from_file[i].population, sizeof(data_from_file[i].population), 1, file);
+				}
+			}
+			else
+			{
+				size_t size_of_word = strlen(data_from_file[i].name);
+				fwrite(&size_of_word, sizeof(size_of_word), 1, file);
+				fwrite(data_from_file[i].name, sizeof(char), size_of_word, file);
+				fwrite(&data_from_file[i].square, sizeof(data_from_file[i].square), 1, file);
+				fwrite(&data_from_file[i].population, sizeof(data_from_file[i].population), 1, file);
+			}		
+		}
+
+		if (is_last)
+		{
+			size_t size_of_obj_name = strlen(obj.name);
+			fwrite(&size_of_obj_name, sizeof(size_of_obj_name), 1, file);
+			fwrite(obj.name, sizeof(char), size_of_obj_name, file);
+			fwrite(&obj.square, sizeof(obj.square), 1, file);
+			fwrite(&obj.population, sizeof(obj.population), 1, file);
+		}
+
+		if (data_from_file != NULL)
+		{
+			for (ushort i = 0; i < size; i++)
+			{
+				free(data_from_file[i].name);
+				data_from_file[i].name = NULL;
+			}
+
+			free(data_from_file);
+			data_from_file = NULL;
+		}
+
+		free(key);
+		fclose(file);
+
+		printf("Data inserted correctly\n");
+	}
+
+	return true;
 }
