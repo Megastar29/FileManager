@@ -113,6 +113,7 @@ int main()
 	printf("\t\t\t\t8 - insert data to file(sorting needed)\n");
 	printf("\t\t\t\t9 - delete data from file\n");
 	printf("\t\t\t\t10 - exit program\n");
+	printf("\nWarning: all numbers with floating point must have less than 7 digits after dot\n");
 
 	ushort option = NON_OPTION;
 	char* path = malloc(MAX_NAME_SIZE);
