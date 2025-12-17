@@ -1831,7 +1831,7 @@ bool insert_data_in_file(FILE* file, char* path, country_data obj, bool* is_sort
 				is_last = true;
 				for (ushort i = 0; i < size - 1; i++)
 				{
-					if (strcmp(obj.name, data_from_file[i].name) >= 0 && 
+					if (strcmp(obj.name, data_from_file[i].name) >= 0 &&
 						strcmp(obj.name, data_from_file[i + 1].name) <= 0)
 					{
 						insert_index = i + 1;
@@ -1864,7 +1864,7 @@ bool insert_data_in_file(FILE* file, char* path, country_data obj, bool* is_sort
 			}
 		}
 		else if (key[3] == '1')
-        {
+		{
 			if (key[5] == '0')
 			{
 				is_last = true;
@@ -1875,13 +1875,13 @@ bool insert_data_in_file(FILE* file, char* path, country_data obj, bool* is_sort
 					{
 						insert_index = i + 1;
 						is_last = false;
-        }
+					}
 				}
 
 				if (is_last)
-        {
+				{
 					insert_index = size - 1;
-        }
+				}
 
 				if (is_last)
 				{
@@ -1910,8 +1910,8 @@ bool insert_data_in_file(FILE* file, char* path, country_data obj, bool* is_sort
 				}
 			}
 		}
-        else
-        {
+		else
+		{
 			is_last = true;
 			for (ushort i = 0; i < size - 1; i++)
 			{
@@ -1927,87 +1927,89 @@ bool insert_data_in_file(FILE* file, char* path, country_data obj, bool* is_sort
 			{
 				insert_index = size - 1;
 			}
-		
+
 		}
 
-    fclose(file);
+		fclose(file);
 
-    if (!clear_the_file(path))
-    {
-        for (ushort i = 0; i < size; i++) 
-		{ 
-			free(data_from_file[i].name); 
-		}
-        free(data_from_file);
-        free(key);
-        return false;
-    }
-
-    fopen_s(&file, path, "ab");
-    if (file == NULL)
-    {
-        printf("\nError: cannot open the file! The file is not in the directory or the name of the file is wrong. Make sure that the file has extention .mf\n");
-        for (ushort i = 0; i < size; i++) 
+		if (!clear_the_file(path))
 		{
-			free(data_from_file[i].name);
+			for (ushort i = 0; i < size; i++)
+			{
+				free(data_from_file[i].name);
+			}
+			free(data_from_file);
+			free(key);
+			return false;
 		}
-        free(data_from_file);
-        free(key);
-        return false;
-    }
 
-    fwrite(key, sizeof(char), KEY_SYMBOLS, file);
+		fopen_s(&file, path, "ab");
+		if (file == NULL)
+		{
+			printf("\nError: cannot open the file! The file is not in the directory or the name of the file is wrong. Make sure that the file has extention .mf\n");
+			for (ushort i = 0; i < size; i++)
+			{
+				free(data_from_file[i].name);
+			}
+			free(data_from_file);
+			free(key);
+			return false;
+		}
 
-    // write elements: [0, insert_index)
-    for (ushort i = 0; i < insert_index; i++)
-    {
-        size_t size_of_word = strlen(data_from_file[i].name);
-        fwrite(&size_of_word, sizeof(size_of_word), 1, file);
-        fwrite(data_from_file[i].name, sizeof(char), size_of_word, file);
-        fwrite(&data_from_file[i].square, sizeof(data_from_file[i].square), 1, file);
-        fwrite(&data_from_file[i].population, sizeof(data_from_file[i].population), 1, file);
-    }
+		fwrite(key, sizeof(char), KEY_SYMBOLS, file);
 
-    // write new object
-    size_t size_of_obj_name = strlen(obj.name);
-    fwrite(&size_of_obj_name, sizeof(size_of_obj_name), 1, file);
-    fwrite(obj.name, sizeof(char), size_of_obj_name, file);
-    fwrite(&obj.square, sizeof(obj.square), 1, file);
-    fwrite(&obj.population, sizeof(obj.population), 1, file);
+		// write elements: [0, insert_index)
+		for (ushort i = 0; i < insert_index; i++)
+		{
+			size_t size_of_word = strlen(data_from_file[i].name);
+			fwrite(&size_of_word, sizeof(size_of_word), 1, file);
+			fwrite(data_from_file[i].name, sizeof(char), size_of_word, file);
+			fwrite(&data_from_file[i].square, sizeof(data_from_file[i].square), 1, file);
+			fwrite(&data_from_file[i].population, sizeof(data_from_file[i].population), 1, file);
+		}
 
-    // write remaining elements: [insert_index, size)
-    for (ushort i = insert_index; i < size; i++)
-    {
-        size_t size_of_word = strlen(data_from_file[i].name);
-        fwrite(&size_of_word, sizeof(size_of_word), 1, file);
-        fwrite(data_from_file[i].name, sizeof(char), size_of_word, file);
-        fwrite(&data_from_file[i].square, sizeof(data_from_file[i].square), 1, file);
-        fwrite(&data_from_file[i].population, sizeof(data_from_file[i].population), 1, file);
-    }
+		// write new object
+		size_t size_of_obj_name = strlen(obj.name);
+		fwrite(&size_of_obj_name, sizeof(size_of_obj_name), 1, file);
+		fwrite(obj.name, sizeof(char), size_of_obj_name, file);
+		fwrite(&obj.square, sizeof(obj.square), 1, file);
+		fwrite(&obj.population, sizeof(obj.population), 1, file);
 
-		if (is_last)
+		// write remaining elements: (insert_index, size)
+		for (ushort i = insert_index; i < size; i++)
+		{
+			size_t size_of_word = strlen(data_from_file[i].name);
+			fwrite(&size_of_word, sizeof(size_of_word), 1, file);
+			fwrite(data_from_file[i].name, sizeof(char), size_of_word, file);
+			fwrite(&data_from_file[i].square, sizeof(data_from_file[i].square), 1, file);
+			fwrite(&data_from_file[i].population, sizeof(data_from_file[i].population), 1, file);
+		}
+
+		/*if (is_last)
 		{
 			size_t size_of_obj_name = strlen(obj.name);
 			fwrite(&size_of_obj_name, sizeof(size_of_obj_name), 1, file);
 			fwrite(obj.name, sizeof(char), size_of_obj_name, file);
 			fwrite(&obj.square, sizeof(obj.square), 1, file);
 			fwrite(&obj.population, sizeof(obj.population), 1, file);
-		}
+		}*/
 
 		if (data_from_file != NULL)
 		{
-    for (ushort i = 0; i < size; i++)
-    {
-        free(data_from_file[i].name);
-        data_from_file[i].name = NULL;
-    }
-    free(data_from_file);
-    data_from_file = NULL;
+			for (ushort i = 0; i < size; i++)
+			{
+				free(data_from_file[i].name);
+				data_from_file[i].name = NULL;
+			}
+			free(data_from_file);
+			data_from_file = NULL;
 
-    free(key);
-    fclose(file);
+			free(key);
+			fclose(file);
 
-    printf("Data inserted correctly\n");
+			printf("Data inserted correctly\n");
+		}
+	}
 
     return true;
 }
