@@ -242,8 +242,7 @@ int main()
 				printf("\nError: cannot open the file! The file is not in the directory or the name of the file is wrong. Make sure that the file has extention .mf\n");
 			}
 			else
-			{
-				// idea: check what is in file (count written data) 
+			{				
 				ushort count_rec = 0;
 				char inv_data = '\0';
 				do
@@ -1990,3 +1989,4 @@ bool insert_data_in_file(FILE* file, char* path, country_data obj, bool* is_sort
 
 	return true;
 }
+
